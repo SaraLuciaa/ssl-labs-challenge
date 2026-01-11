@@ -1,11 +1,13 @@
 package services
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/SaraLuciaa/ssl-labs-challenge/pkg/dto"
 	"github.com/SaraLuciaa/ssl-labs-challenge/pkg/models"
 	"github.com/SaraLuciaa/ssl-labs-challenge/repositories"
+	"github.com/SaraLuciaa/ssl-labs-challenge/services/analysisState"
 	"github.com/google/uuid"
 )
 
@@ -22,11 +24,71 @@ func NewAnalysisService(ssl *SslLabsService, repo repositories.AnalysisRepositor
 }
 
 func (s *AnalysisService) StartAnalysis(request dto.AnalysisRequest) (*models.Analysis, error) {
+	request.StartNew = "on"
+	request.All = "done" 
+
 	resp, err := s.ssl.Analyze(request)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to start SSL Labs analysis: %w", err)
 	}
 
+	analysis := s.createAnalysisFromResponse(resp)
+
+	if err := analysis.UpdateFromAPIResponse(resp); err != nil {
+		return nil, fmt.Errorf("failed to save raw response: %w", err)
+	}
+
+	ctx := analysisState.NewAnalysisContext(analysis)
+	if err := ctx.Process(); err != nil {
+		return nil, fmt.Errorf("failed to process analysis state: %w", err)
+	}
+
+	if err := s.repo.Create(analysis); err != nil {
+		return nil, fmt.Errorf("failed to save analysis: %w", err)
+	}
+
+	return analysis, nil
+}
+
+func (s *AnalysisService) UpdateAnalysisStatus(analysisID uuid.UUID) (*models.Analysis, error) {
+	analysis, err := s.repo.FindByID(analysisID)
+	if err != nil {
+		return nil, fmt.Errorf("analysis not found: %w", err)
+	}
+
+	if analysis.IsCompleted() {
+		return analysis, nil
+	}
+
+	request := dto.AnalysisRequest{
+		Host: analysis.Host,
+		All:  "done",
+	}
+
+	resp, err := s.ssl.Analyze(request)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check SSL Labs status: %w", err)
+	}
+
+	s.updateAnalysisFromResponse(analysis, resp)
+
+	if err := analysis.UpdateFromAPIResponse(resp); err != nil {
+		return nil, fmt.Errorf("failed to update raw response: %w", err)
+	}
+
+	ctx := analysisState.NewAnalysisContext(analysis)
+	if err := ctx.Process(); err != nil {
+		return nil, fmt.Errorf("failed to process state transition: %w", err)
+	}
+
+	if err := s.repo.Create(analysis); err != nil { 
+		return nil, fmt.Errorf("failed to update analysis: %w", err)
+	}
+
+	return analysis, nil
+}
+
+func (s *AnalysisService) createAnalysisFromResponse(resp *dto.AnalysisResponse) *models.Analysis {
 	startTime := time.UnixMilli(resp.StartTime)
 
 	analysis := &models.Analysis{
@@ -40,9 +102,24 @@ func (s *AnalysisService) StartAnalysis(request dto.AnalysisRequest) (*models.An
 		CriteriaVersion: resp.CriteriaVersion,
 	}
 
-	if err := s.repo.Create(analysis); err != nil {
-		return nil, err
+	if len(resp.Endpoints) > 0 {
+		for _, ep := range resp.Endpoints {
+			if ep.Grade != "" {
+				analysis.Grade = ep.Grade
+				break
+			}
+		}
 	}
 
-	return analysis, nil
+	return analysis
+}
+
+func (s *AnalysisService) updateAnalysisFromResponse(analysis *models.Analysis, resp *dto.AnalysisResponse) {
+	analysis.Status = resp.Status
+	analysis.StatusMessage = resp.StatusMessage
+
+	if resp.TestTime > 0 {
+		testTime := time.UnixMilli(resp.TestTime)
+		analysis.EndTime = &testTime
+	}
 }
