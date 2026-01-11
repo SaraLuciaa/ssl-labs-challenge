@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/SaraLuciaa/ssl-labs-challenge/pkg/constants"
 	"github.com/SaraLuciaa/ssl-labs-challenge/pkg/dto"
 	"github.com/SaraLuciaa/ssl-labs-challenge/pkg/models"
 	"github.com/SaraLuciaa/ssl-labs-challenge/repositories"
-	"github.com/SaraLuciaa/ssl-labs-challenge/services/analysisState"
 	"github.com/google/uuid"
 )
 
@@ -25,7 +25,7 @@ func NewAnalysisService(ssl *SslLabsService, repo repositories.AnalysisRepositor
 
 func (s *AnalysisService) StartAnalysis(request dto.AnalysisRequest) (*models.Analysis, error) {
 	request.StartNew = "on"
-	request.All = "done" 
+	request.All = "done"
 
 	resp, err := s.ssl.Analyze(request)
 	if err != nil {
@@ -38,13 +38,24 @@ func (s *AnalysisService) StartAnalysis(request dto.AnalysisRequest) (*models.An
 		return nil, fmt.Errorf("failed to save raw response: %w", err)
 	}
 
-	ctx := analysisState.NewAnalysisContext(analysis)
-	if err := ctx.Process(); err != nil {
-		return nil, fmt.Errorf("failed to process analysis state: %w", err)
+	if len(resp.Endpoints) > 0 {
+		for _, ep := range resp.Endpoints {
+			if ep.Grade != "" {
+				analysis.Grade = ep.Grade
+				break
+			}
+		}
 	}
+
+	now := time.Now()
+	analysis.LastCheckedAt = &now
 
 	if err := s.repo.Create(analysis); err != nil {
 		return nil, fmt.Errorf("failed to save analysis: %w", err)
+	}
+
+	if !analysis.IsCompleted() {
+		s.PollAnalysisInBackground(analysis.ID)
 	}
 
 	return analysis, nil
@@ -76,12 +87,19 @@ func (s *AnalysisService) UpdateAnalysisStatus(analysisID uuid.UUID) (*models.An
 		return nil, fmt.Errorf("failed to update raw response: %w", err)
 	}
 
-	ctx := analysisState.NewAnalysisContext(analysis)
-	if err := ctx.Process(); err != nil {
-		return nil, fmt.Errorf("failed to process state transition: %w", err)
+	if len(resp.Endpoints) > 0 {
+		for _, ep := range resp.Endpoints {
+			if ep.Grade != "" {
+				analysis.Grade = ep.Grade
+				break
+			}
+		}
 	}
 
-	if err := s.repo.Create(analysis); err != nil { 
+	now := time.Now()
+	analysis.LastCheckedAt = &now
+
+	if err := s.repo.Update(analysis); err != nil {
 		return nil, fmt.Errorf("failed to update analysis: %w", err)
 	}
 
@@ -122,4 +140,64 @@ func (s *AnalysisService) updateAnalysisFromResponse(analysis *models.Analysis, 
 		testTime := time.UnixMilli(resp.TestTime)
 		analysis.EndTime = &testTime
 	}
+}
+
+func (s *AnalysisService) PollAnalysisInBackground(analysisID uuid.UUID) {
+	go func() {
+		for {
+			analysis, err := s.repo.FindByID(analysisID)
+			if err != nil {
+				return
+			}
+
+			if analysis.IsCompleted() {
+				return
+			}
+
+			delay := constants.GetPollingDelay(analysis.Status)
+
+			time.Sleep(time.Duration(delay) * time.Second)
+
+			request := dto.AnalysisRequest{
+				Host: analysis.Host,
+				All:  "done",
+			}
+
+			resp, err := s.ssl.Analyze(request)
+			if err != nil {
+				continue
+			}
+
+			s.updateAnalysisFromResponse(analysis, resp)
+
+			if err := analysis.UpdateFromAPIResponse(resp); err != nil {
+				continue
+			}
+
+			if len(resp.Endpoints) > 0 {
+				for _, ep := range resp.Endpoints {
+					if ep.Grade != "" {
+						analysis.Grade = ep.Grade
+						break
+					}
+				}
+			}
+
+			now := time.Now()
+			analysis.LastCheckedAt = &now
+
+			if err := s.repo.Update(analysis); err != nil {
+				continue
+			}
+		}
+	}()
+}
+
+func (s *AnalysisService) GetAnalysisById(analysisID uuid.UUID) (*models.Analysis, error) {
+	analysis, err := s.repo.FindByID(analysisID)
+	if err != nil {
+		return nil, fmt.Errorf("analysis not found: %w", err)
+	}
+
+	return analysis, nil
 }

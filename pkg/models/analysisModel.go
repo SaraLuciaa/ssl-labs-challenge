@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/SaraLuciaa/ssl-labs-challenge/pkg/constants"
 	"github.com/google/uuid"
 	"gorm.io/datatypes"
 )
@@ -20,6 +21,7 @@ type Analysis struct {
 	EngineVersion   string         `json:"engine_version,omitempty"`
 	CriteriaVersion string         `json:"criteria_version,omitempty"`
 	RawResponse     datatypes.JSON `gorm:"type:jsonb" json:"raw_response,omitempty"`
+	LastCheckedAt   *time.Time     `json:"last_checked_at,omitempty"`
 	CreatedAt       time.Time      `json:"created_at"`
 	UpdatedAt       time.Time      `json:"updated_at"`
 }
@@ -34,17 +36,17 @@ func (a *Analysis) UpdateFromAPIResponse(response interface{}) error {
 }
 
 func (a *Analysis) IsInProgress() bool {
-	return a.Status == "DNS" || a.Status == "IN_PROGRESS"
+	return a.Status == constants.DNS || a.Status == constants.InProgress
 }
 
 func (a *Analysis) IsCompleted() bool {
-	return a.Status == "READY" || a.Status == "ERROR"
+	return a.Status == constants.Ready || a.Status == constants.Error
 }
 
 func (a *Analysis) HasError() bool {
-	return a.Status == "ERROR"
+	return a.Status == constants.Error
 }
 
 func (a *Analysis) IsReady() bool {
-	return a.Status == "READY"
+	return a.Status == constants.Ready
 }

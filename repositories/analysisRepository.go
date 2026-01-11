@@ -8,6 +8,7 @@ import (
 
 type AnalysisRepository interface {
 	Create(analysis *models.Analysis) error
+	Update(analysis *models.Analysis) error
 	FindByID(id uuid.UUID) (*models.Analysis, error)
 }
 
@@ -23,6 +24,10 @@ func NewAnalysisRepository(db *gorm.DB) AnalysisRepository {
 
 func (r *analysisRepository) Create(analysis *models.Analysis) error {
 	return r.db.Create(analysis).Error
+}
+
+func (r *analysisRepository) Update(analysis *models.Analysis) error {
+	return r.db.Save(analysis).Error
 }
 
 func (r *analysisRepository) FindByID(id uuid.UUID) (*models.Analysis, error) {
