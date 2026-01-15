@@ -32,6 +32,6 @@ func (r *analysisRepository) Update(analysis *models.Analysis) error {
 
 func (r *analysisRepository) FindByID(id uuid.UUID) (*models.Analysis, error) {
 	var analysis models.Analysis
-	err := r.db.First(&analysis, "id = ?", id).Error
+	err := r.db.Preload("Endpoints").First(&analysis, "id = ?", id).Error
 	return &analysis, err
 }
