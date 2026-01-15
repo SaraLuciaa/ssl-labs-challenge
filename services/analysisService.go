@@ -12,14 +12,16 @@ import (
 )
 
 type AnalysisService struct {
-	ssl  *SslLabsService
-	repo repositories.AnalysisRepository
+	ssl *SslLabsService
+	analysisRepo repositories.AnalysisRepository
+	endpointRepo repositories.EndpointRepository
 }
 
-func NewAnalysisService(ssl *SslLabsService, repo repositories.AnalysisRepository) *AnalysisService {
+func NewAnalysisService(ssl *SslLabsService, analysisRepo repositories.AnalysisRepository, endpointRepo repositories.EndpointRepository) *AnalysisService {
 	return &AnalysisService{
-		ssl:  ssl,
-		repo: repo,
+		ssl: ssl,
+		analysisRepo: analysisRepo,
+		endpointRepo: endpointRepo,
 	}
 }
 
@@ -29,12 +31,12 @@ func (s *AnalysisService) StartAnalysis(request dto.AnalysisRequest) (*models.An
 		return nil, fmt.Errorf("failed to start SSL Labs analysis: %w", err)
 	}
 
-	analysis := s.createAnalysisFromResponse(resp)
+	analysis := s.AnalysisFromResponse(nil, resp)
 
 	now := time.Now()
 	analysis.LastCheckedAt = &now
 
-	if err := s.repo.Create(analysis); err != nil {
+	if err := s.analysisRepo.Create(analysis); err != nil {
 		return nil, fmt.Errorf("failed to save analysis: %w", err)
 	}
 
@@ -45,67 +47,10 @@ func (s *AnalysisService) StartAnalysis(request dto.AnalysisRequest) (*models.An
 	return analysis, nil
 }
 
-func (s *AnalysisService) UpdateAnalysisStatus(analysisID uuid.UUID) (*models.Analysis, error) {
-	analysis, err := s.repo.FindByID(analysisID)
-	if err != nil {
-		return nil, fmt.Errorf("analysis not found: %w", err)
-	}
-
-	if analysis.IsCompleted() {
-		return analysis, nil
-	}
-
-	request := dto.AnalysisRequest{
-		Host: analysis.Host,
-		All:  "done",
-	}
-
-	resp, err := s.ssl.Analyze(request)
-	if err != nil {
-		return nil, fmt.Errorf("failed to check SSL Labs status: %w", err)
-	}
-
-	s.updateAnalysisFromResponse(analysis, resp)
-
-	now := time.Now()
-	analysis.LastCheckedAt = &now
-
-	if err := s.repo.Update(analysis); err != nil {
-		return nil, fmt.Errorf("failed to update analysis: %w", err)
-	}
-
-	return analysis, nil
-}
-
-func (s *AnalysisService) createAnalysisFromResponse(resp *dto.AnalysisResponse) *models.Analysis {
-	startTime := time.UnixMilli(resp.StartTime)
-
-	analysis := &models.Analysis{
-		ID:              uuid.New(),
-		Host:            resp.Host,
-		Status:          resp.Status,
-		StartTime:       &startTime,
-		IsPublic:        resp.IsPublic,
-		EngineVersion:   resp.EngineVersion,
-		CriteriaVersion: resp.CriteriaVersion,
-	}
-
-	return analysis
-}
-
-func (s *AnalysisService) updateAnalysisFromResponse(analysis *models.Analysis, resp *dto.AnalysisResponse) {
-	analysis.Status = resp.Status
-
-	if resp.TestTime > 0 {
-		testTime := time.UnixMilli(resp.TestTime)
-		analysis.TestTime = &testTime
-	}
-}
-
 func (s *AnalysisService) PollAnalysisInBackground(analysisID uuid.UUID) {
 	go func() {
 		for {
-			analysis, err := s.repo.FindByID(analysisID)
+			analysis, err := s.analysisRepo.FindByID(analysisID)
 			if err != nil {
 				return
 			}
@@ -128,20 +73,88 @@ func (s *AnalysisService) PollAnalysisInBackground(analysisID uuid.UUID) {
 				continue
 			}
 
-			s.updateAnalysisFromResponse(analysis, resp)
+			analysis = s.AnalysisFromResponse(analysis, resp)
 
 			now := time.Now()
 			analysis.LastCheckedAt = &now
 
-			if err := s.repo.Update(analysis); err != nil {
+			if err := s.analysisRepo.Update(analysis); err != nil {
 				continue
 			}
 		}
 	}()
 }
 
+func (s *AnalysisService) AnalysisFromResponse(analysis *models.Analysis, resp *dto.AnalysisResponse) *models.Analysis {
+	if analysis == nil {
+		analysis = &models.Analysis{
+			ID: uuid.New(),
+		}
+	}
+
+	analysis.Host = resp.Host
+	analysis.Port = resp.Port
+	analysis.Protocol = resp.Protocol
+	analysis.IsPublic = resp.IsPublic
+	analysis.Status = resp.Status
+	analysis.EngineVersion = resp.EngineVersion
+	analysis.CriteriaVersion = resp.CriteriaVersion
+
+	if resp.StartTime > 0 {
+		startTime := time.UnixMilli(resp.StartTime)
+		analysis.StartTime = &startTime
+	}
+
+	if resp.TestTime > 0 {
+		testTime := time.UnixMilli(resp.TestTime)
+		analysis.TestTime = &testTime
+	}
+
+	analysis.Endpoints = s.EndpointsFromResponse(analysis.ID, resp.Endpoints)
+
+	return analysis
+}
+
+func (s *AnalysisService) EndpointsFromResponse(analysisID uuid.UUID, endpointsDto []dto.EndpointDto) []models.Endpoint {
+	endpoints := []models.Endpoint{}
+
+	for _, ep := range endpointsDto {
+		existingEndpoint, err := s.endpointRepo.FindByAnalysisIDAndIP(analysisID, ep.IPAddress)
+		isNewEndpoint := err != nil || existingEndpoint == nil
+
+		var endpoint models.Endpoint
+		if err == nil && existingEndpoint != nil {
+			endpoint = *existingEndpoint
+			isNewEndpoint = false
+		} else {
+			endpoint = models.Endpoint{
+				ID:         uuid.New(),
+				AnalysisID: analysisID,
+			}
+			isNewEndpoint = true
+		}
+
+		endpoint.IPAddress = ep.IPAddress
+		endpoint.ServerName = ep.ServerName
+		endpoint.StatusMessage = ep.StatusMessage
+		endpoint.Grade = ep.Grade
+		endpoint.Progress = ep.Progress
+		endpoint.Details = ep.Details
+
+		if isNewEndpoint {
+			s.endpointRepo.Create(&endpoint)
+		} else {
+			s.endpointRepo.Update(&endpoint)
+		}
+
+		endpoints = append(endpoints, endpoint)
+	}
+
+	return endpoints
+}
+
 func (s *AnalysisService) GetAnalysisById(analysisID uuid.UUID) (*models.Analysis, error) {
-	analysis, err := s.repo.FindByID(analysisID)
+	analysis, err := s.analysisRepo.FindByID(analysisID)
 	if err != nil {
 		return nil, fmt.Errorf("analysis not found: %w", err)
 	}

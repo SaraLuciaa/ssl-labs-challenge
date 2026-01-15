@@ -14,7 +14,7 @@ import (
 func init() {
 	initializers.LoadEnvVariables()
 	initializers.ConnectToDatabase()
-	initializers.DB.AutoMigrate(&models.Analysis{})
+	initializers.DB.AutoMigrate(&models.Analysis{}, &models.Endpoint{})
 }
 
 func main() {
@@ -23,7 +23,8 @@ func main() {
 	httpClient := &http.Client{}
 	sslService := services.NewSSLLabsService(httpClient)
 	analysisRepo := repositories.NewAnalysisRepository(initializers.DB)
-	analysisService := services.NewAnalysisService(sslService, analysisRepo)
+	endpointRepo := repositories.NewEndpointRepository(initializers.DB)
+	analysisService := services.NewAnalysisService(sslService, analysisRepo, endpointRepo)
 	analysisController := controllers.NewAnalysisController(analysisService)
 
 	r.POST("/analysis", analysisController.AnalysisStart)

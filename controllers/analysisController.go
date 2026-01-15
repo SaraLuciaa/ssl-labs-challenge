@@ -29,6 +29,9 @@ func (ctrl *AnalysisController) AnalysisStart(c *gin.Context) {
 		return
 	}
 
+	request.StartNew = "on"
+	request.All = "done"
+
 	analysis, err := ctrl.service.StartAnalysis(request)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{

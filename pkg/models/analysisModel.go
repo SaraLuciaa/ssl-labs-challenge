@@ -10,7 +10,7 @@ import (
 type Analysis struct {
 	ID uuid.UUID `gorm:"type:uuid;primaryKey" json:"id"`
 	Host string `gorm:"not null" json:"host"`
-	Port string `json:"port,omitempty"`
+	Port int `json:"port,omitempty"`
 	Protocol string `json:"protocol,omitempty"`
 	IsPublic bool `gorm:"default:false" json:"is_public"`
 	Status string `gorm:"not null" json:"status"`
