@@ -34,19 +34,6 @@ func (s *AnalysisService) StartAnalysis(request dto.AnalysisRequest) (*models.An
 
 	analysis := s.createAnalysisFromResponse(resp)
 
-	if err := analysis.UpdateFromAPIResponse(resp); err != nil {
-		return nil, fmt.Errorf("failed to save raw response: %w", err)
-	}
-
-	if len(resp.Endpoints) > 0 {
-		for _, ep := range resp.Endpoints {
-			if ep.Grade != "" {
-				analysis.Grade = ep.Grade
-				break
-			}
-		}
-	}
-
 	now := time.Now()
 	analysis.LastCheckedAt = &now
 
@@ -83,19 +70,6 @@ func (s *AnalysisService) UpdateAnalysisStatus(analysisID uuid.UUID) (*models.An
 
 	s.updateAnalysisFromResponse(analysis, resp)
 
-	if err := analysis.UpdateFromAPIResponse(resp); err != nil {
-		return nil, fmt.Errorf("failed to update raw response: %w", err)
-	}
-
-	if len(resp.Endpoints) > 0 {
-		for _, ep := range resp.Endpoints {
-			if ep.Grade != "" {
-				analysis.Grade = ep.Grade
-				break
-			}
-		}
-	}
-
 	now := time.Now()
 	analysis.LastCheckedAt = &now
 
@@ -113,20 +87,10 @@ func (s *AnalysisService) createAnalysisFromResponse(resp *dto.AnalysisResponse)
 		ID:              uuid.New(),
 		Host:            resp.Host,
 		Status:          resp.Status,
-		StatusMessage:   resp.StatusMessage,
 		StartTime:       &startTime,
 		IsPublic:        resp.IsPublic,
 		EngineVersion:   resp.EngineVersion,
 		CriteriaVersion: resp.CriteriaVersion,
-	}
-
-	if len(resp.Endpoints) > 0 {
-		for _, ep := range resp.Endpoints {
-			if ep.Grade != "" {
-				analysis.Grade = ep.Grade
-				break
-			}
-		}
 	}
 
 	return analysis
@@ -134,7 +98,6 @@ func (s *AnalysisService) createAnalysisFromResponse(resp *dto.AnalysisResponse)
 
 func (s *AnalysisService) updateAnalysisFromResponse(analysis *models.Analysis, resp *dto.AnalysisResponse) {
 	analysis.Status = resp.Status
-	analysis.StatusMessage = resp.StatusMessage
 
 	if resp.TestTime > 0 {
 		testTime := time.UnixMilli(resp.TestTime)
@@ -169,19 +132,6 @@ func (s *AnalysisService) PollAnalysisInBackground(analysisID uuid.UUID) {
 			}
 
 			s.updateAnalysisFromResponse(analysis, resp)
-
-			if err := analysis.UpdateFromAPIResponse(resp); err != nil {
-				continue
-			}
-
-			if len(resp.Endpoints) > 0 {
-				for _, ep := range resp.Endpoints {
-					if ep.Grade != "" {
-						analysis.Grade = ep.Grade
-						break
-					}
-				}
-			}
 
 			now := time.Now()
 			analysis.LastCheckedAt = &now

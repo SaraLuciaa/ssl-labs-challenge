@@ -29,7 +29,6 @@ type EndpointSummary struct {
 	IPAddress     string `json:"ipAddress"`
 	ServerName    string `json:"serverName,omitempty"`
 	StatusMessage string `json:"statusMessage"`
-	Grade         string `json:"grade,omitempty"`
 	HasWarnings   bool   `json:"hasWarnings,omitempty"`
 	IsExceptional bool   `json:"isExceptional,omitempty"`
 	Progress      int    `json:"progress"`

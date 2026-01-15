@@ -12,7 +12,6 @@ type Analysis struct {
 	Host            string
 	Status          string
 	StatusMessage   string
-	Grade           string
 	StartTime       *time.Time
 	EndTime         *time.Time
 	IsPublic        bool
