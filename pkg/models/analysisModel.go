@@ -10,10 +10,12 @@ import (
 type Analysis struct {
 	ID uuid.UUID `gorm:"type:uuid;primaryKey" json:"id"`
 	Host string `gorm:"not null" json:"host"`
+	Port string `json:"port,omitempty"`
+	Protocol string `json:"protocol,omitempty"`
+	IsPublic bool `gorm:"default:false" json:"is_public"`
 	Status string `gorm:"not null" json:"status"`
 	StartTime *time.Time `json:"start_time,omitempty"`
-	EndTime *time.Time `json:"end_time,omitempty"`
-	IsPublic bool `gorm:"default:false" json:"is_public"`
+	TestTime *time.Time `json:"test_time,omitempty"`
 	EngineVersion string `json:"engine_version,omitempty"`
 	CriteriaVersion string  `json:"criteria_version,omitempty"`
 	LastCheckedAt *time.Time `json:"last_checked_at,omitempty"`

@@ -24,9 +24,6 @@ func NewAnalysisService(ssl *SslLabsService, repo repositories.AnalysisRepositor
 }
 
 func (s *AnalysisService) StartAnalysis(request dto.AnalysisRequest) (*models.Analysis, error) {
-	request.StartNew = "on"
-	request.All = "done"
-
 	resp, err := s.ssl.Analyze(request)
 	if err != nil {
 		return nil, fmt.Errorf("failed to start SSL Labs analysis: %w", err)
@@ -101,7 +98,7 @@ func (s *AnalysisService) updateAnalysisFromResponse(analysis *models.Analysis, 
 
 	if resp.TestTime > 0 {
 		testTime := time.UnixMilli(resp.TestTime)
-		analysis.EndTime = &testTime
+		analysis.TestTime = &testTime
 	}
 }
 

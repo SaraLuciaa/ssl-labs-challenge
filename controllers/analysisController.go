@@ -38,7 +38,6 @@ func (ctrl *AnalysisController) AnalysisStart(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message":  "Analysis started",
 		"analysis": analysis,
 	})
 }
