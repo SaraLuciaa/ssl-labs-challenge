@@ -8,6 +8,7 @@ import (
 	"github.com/SaraLuciaa/ssl-labs-challenge/pkg/models"
 	"github.com/SaraLuciaa/ssl-labs-challenge/repositories"
 	"github.com/SaraLuciaa/ssl-labs-challenge/services"
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
 
@@ -19,6 +20,14 @@ func init() {
 
 func main() {
 	r := gin.Default()
+
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://localhost:5173"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+	}))
 
 	httpClient := &http.Client{}
 	sslService := services.NewSSLLabsService(httpClient)
