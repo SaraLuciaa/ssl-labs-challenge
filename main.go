@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	"os"
 
 	"github.com/SaraLuciaa/ssl-labs-challenge/controllers"
 	"github.com/SaraLuciaa/ssl-labs-challenge/initializers"
@@ -21,8 +22,10 @@ func init() {
 func main() {
 	r := gin.Default()
 
+	allowedOrigin := os.Getenv("ALLOWED_ORIGIN")
+	
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:5173"},
+		AllowOrigins:     []string{allowedOrigin},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
