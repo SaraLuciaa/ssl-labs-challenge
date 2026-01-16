@@ -67,3 +67,17 @@ func (ctrl *AnalysisController) GetAnalysis(c *gin.Context) {
 		"analysis": analysis,
 	})
 }
+
+func (ctrl *AnalysisController) GetAllAnalyses(c *gin.Context) {
+	analyses, err := ctrl.service.GetAllAnalyses()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"analyses": analyses,
+	})
+}

@@ -12,17 +12,25 @@ import (
 )
 
 type AnalysisService struct {
-	ssl *SslLabsService
+	ssl          *SslLabsService
 	analysisRepo repositories.AnalysisRepository
 	endpointRepo repositories.EndpointRepository
 }
 
 func NewAnalysisService(ssl *SslLabsService, analysisRepo repositories.AnalysisRepository, endpointRepo repositories.EndpointRepository) *AnalysisService {
 	return &AnalysisService{
-		ssl: ssl,
+		ssl:          ssl,
 		analysisRepo: analysisRepo,
 		endpointRepo: endpointRepo,
 	}
+}
+
+func (s *AnalysisService) GetAllAnalyses() ([]models.Analysis, error) {
+	analyses, err := s.analysisRepo.FindAll()
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve analyses: %w", err)
+	}
+	return analyses, nil
 }
 
 func (s *AnalysisService) StartAnalysis(request dto.AnalysisRequest) (*models.Analysis, error) {

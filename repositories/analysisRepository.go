@@ -10,6 +10,7 @@ type AnalysisRepository interface {
 	Create(analysis *models.Analysis) error
 	Update(analysis *models.Analysis) error
 	FindByID(id uuid.UUID) (*models.Analysis, error)
+	FindAll() ([]models.Analysis, error)
 }
 
 type analysisRepository struct {
@@ -34,4 +35,10 @@ func (r *analysisRepository) FindByID(id uuid.UUID) (*models.Analysis, error) {
 	var analysis models.Analysis
 	err := r.db.Preload("Endpoints").First(&analysis, "id = ?", id).Error
 	return &analysis, err
+}
+
+func (r *analysisRepository) FindAll() ([]models.Analysis, error) {
+	var analyses []models.Analysis
+	err := r.db.Preload("Endpoints").Order("created_at DESC").Find(&analyses).Error
+	return analyses, err
 }

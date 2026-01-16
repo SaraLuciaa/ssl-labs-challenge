@@ -37,6 +37,7 @@ func main() {
 	analysisController := controllers.NewAnalysisController(analysisService)
 
 	r.POST("/analysis", analysisController.AnalysisStart)
+	r.GET("/analysis", analysisController.GetAllAnalyses)
 	r.GET("/analysis/:id", analysisController.GetAnalysis)
 
 	r.Run()
