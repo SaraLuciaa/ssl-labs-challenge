@@ -12,12 +12,12 @@ import (
 )
 
 type AnalysisService struct {
-	ssl          *SslLabsService
+	ssl          SSLLabsAPI
 	analysisRepo repositories.AnalysisRepository
 	endpointRepo repositories.EndpointRepository
 }
 
-func NewAnalysisService(ssl *SslLabsService, analysisRepo repositories.AnalysisRepository, endpointRepo repositories.EndpointRepository) *AnalysisService {
+func NewAnalysisService(ssl SSLLabsAPI, analysisRepo repositories.AnalysisRepository, endpointRepo repositories.EndpointRepository) *AnalysisService {
 	return &AnalysisService{
 		ssl:          ssl,
 		analysisRepo: analysisRepo,

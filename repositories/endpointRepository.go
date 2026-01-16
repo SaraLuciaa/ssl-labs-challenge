@@ -10,7 +10,6 @@ type EndpointRepository interface {
 	Create(endpoint *models.Endpoint) error
 	Update(endpoint *models.Endpoint) error
 	FindByAnalysisIDAndIP(analysisID uuid.UUID, ipAddress string) (*models.Endpoint, error)
-	DeleteByAnalysisID(analysisID uuid.UUID) error
 }
 
 type endpointRepository struct {
@@ -38,8 +37,4 @@ func (r *endpointRepository) FindByAnalysisIDAndIP(analysisID uuid.UUID, ipAddre
 		return nil, err
 	}
 	return &endpoint, nil
-}
-
-func (r *endpointRepository) DeleteByAnalysisID(analysisID uuid.UUID) error {
-	return r.db.Where("analysis_id = ?", analysisID).Delete(&models.Endpoint{}).Error
 }
