@@ -1,6 +1,7 @@
 package services
 
 import (
+	"encoding/csv"
 	"encoding/json"
 	"net/http"
 	"time"
@@ -10,6 +11,7 @@ import (
 
 type SSLLabsAPI interface {
 	Analyze(request dto.AnalysisRequest) (*dto.AnalysisResponse, error)
+	GetLocationById(ip string) ([]string, error)
 }
 
 type SslLabsService struct {
@@ -47,3 +49,25 @@ func (s *SslLabsService) Analyze(request dto.AnalysisRequest) (*dto.AnalysisResp
 
 	return &result, nil
 }
+
+func (s *SslLabsService) GetLocationById(ip string) ([]string, error) {
+	urlll := "http://ip-api.com/csv/" + ip
+
+	response, err := s.client.Get(urlll)
+	if err != nil {
+		return nil, err
+	}
+	defer response.Body.Close()
+
+	csvResponse, err := csv.NewReader(response.Body).Read()
+	if err != nil {
+		return nil, err
+	}
+
+	return csvResponse, nil
+}
+
+// func parseCSV(data []byte) (*csv.Reader, error) {
+//     reader := csv.NewReader(bytes.NewReader(data))
+//     return reader, nil
+// }

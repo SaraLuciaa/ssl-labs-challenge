@@ -81,3 +81,19 @@ func (ctrl *AnalysisController) GetAllAnalyses(c *gin.Context) {
 		"analyses": analyses,
 	})
 }
+
+func (ctrl *AnalysisController) GetLocationById(c *gin.Context) {
+	idParam := c.Param("id")
+	analysisID, err := uuid.Parse(idParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid analysis ID format",
+		})
+		return
+	}
+	locations := ctrl.service.GetIpsAnalysis(analysisID)
+
+	c.JSON(http.StatusOK, gin.H{
+		"locations": locations,
+	})
+}

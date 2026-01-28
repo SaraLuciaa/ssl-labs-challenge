@@ -23,7 +23,7 @@ func main() {
 	r := gin.Default()
 
 	allowedOrigin := os.Getenv("ALLOWED_ORIGIN")
-	
+
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{allowedOrigin},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
@@ -42,6 +42,7 @@ func main() {
 	r.POST("/analysis", analysisController.AnalysisStart)
 	r.GET("/analysis", analysisController.GetAllAnalyses)
 	r.GET("/analysis/:id", analysisController.GetAnalysis)
+	r.GET("/analysis/:id/location", analysisController.GetLocationById)
 
 	r.Run()
 }

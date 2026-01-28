@@ -93,6 +93,22 @@ func (s *AnalysisService) PollAnalysisInBackground(analysisID uuid.UUID) {
 	}()
 }
 
+// Obtener las ips de los endpoints del analisis realizado
+func (s *AnalysisService) GetIpsAnalysis(analysis uuid.UUID) string {
+	analysisResult, _ := s.GetAnalysisById(analysis)
+
+	var response string
+
+	for i := 0; i < len(analysisResult.Endpoints); i++ {
+
+		location, _ := s.ssl.GetLocationById(analysisResult.Endpoints[i].IPAddress)
+
+		response = response + analysisResult.Endpoints[i].IPAddress + "\n Location: " + location[6] + ", " + location[5] + ", " + location[1] + "- Coordinates: " + location[7] + ", " + location[8] + "\n\n"
+	}
+
+	return response
+}
+
 func (s *AnalysisService) AnalysisFromResponse(analysis *models.Analysis, resp *dto.AnalysisResponse) *models.Analysis {
 	if analysis == nil {
 		analysis = &models.Analysis{

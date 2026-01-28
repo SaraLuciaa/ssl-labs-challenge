@@ -24,6 +24,14 @@ func (m *MockSSLLabsService) Analyze(request dto.AnalysisRequest) (*dto.Analysis
 	return args.Get(0).(*dto.AnalysisResponse), args.Error(1)
 }
 
+func (m *MockSSLLabsService) GetLocationById(ip string) ([]string, error) {
+	args := m.Called(ip)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]string), args.Error(1)
+}
+
 type MockAnalysisRepository struct {
 	mock.Mock
 }
